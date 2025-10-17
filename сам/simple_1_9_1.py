@@ -1,11 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-sdfsdf
+
 L, Nx = 1.0, 101
 h = L / (Nx - 1)
 rho, K = 1060.0, 2e5
-S0, p0 = 1, 13300.0
+S0, p0 = 1e-4, 13300.0
 A, omega = 800.0, 30*np.pi
 tau, Nt = 1e-4, 1000
 sigma = 0.5
