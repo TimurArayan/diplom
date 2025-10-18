@@ -1,58 +1,68 @@
+# -*- coding: utf-8 -*-
 import numpy as np
-import matplotlib.pyplot as plt
 
+# === 1. Размерные масштабные параметры ===
+t_m  = 1.0          # [с]   — характерное время
+u_m  = 0.1          # [м/с] — характерная скорость
+p_m  = 1.33e4       # [Па]  — ≈ 100 мм рт.ст.
+nu_m = 3.5e-6       # [м^2/с] — кинематическая вязкость крови
 
-L, Nx = 1.0, 101
-h = L / (Nx - 1)
-rho, K = 1060.0, 2e5
-S0, p0 = 1e-4, 13300.0
-A, omega = 800.0, 30*np.pi
-tau, Nt = 1e-4, 1000
-sigma = 0.5
+# === 2. Производные масштабные множители ===
+x_m   = t_m * u_m                     # [м]
+s_m   = t_m**2 * u_m**2               # [м^2]
+rho_m = p_m / u_m**2                  # [кг/м^3]
+g_m   = u_m / t_m                     # [м/с^2]
+k_dm  = t_m**2 * u_m**3 / p_m         # [—]
+theta = 5e-8                          # [м^2/Па] — упругость сосуда (примерно)
+theta_star = theta * p_m / s_m        # безразмерный коэффициент упругости
 
-x = np.linspace(0, L, Nx)
-S = np.ones(Nx) * S0
-u = np.zeros(Nx)
-p = np.ones(Nx) * p0
+# === 3. Размерные параметры сетки ===
+L     = 1e-3       # [м] длина сосуда
+Nx    = 101        # число узлов
+h     = L / (Nx - 1)
+sigma = 0.9
+tau   = sigma * h / u_m               # [с] шаг по времени
 
-def S_of_p(p): return S0 * (1 + (p - p0)/K)
+# === 4. Безразмерные параметры сетки ===
+L_star   = L / x_m
+h_star   = h / x_m
+tau_star = tau / t_m
 
+# === 5. Безразмерные физические параметры ===
+nu_star  = nu_m / nu_m                # = 1.0
+g        = 9.81                       # [м/с^2]
+g_star   = g / g_m
+rho_star = 1.0                        # нормировка
+k_d      = 1.0
+k_d_star = k_d / k_dm
 
-for n in range(Nt):
-    t = n * tau
-    
-    p_in = p0 + A*np.sin(omega*t)
-    p[0] = p_in
-    S[0] = S_of_p(p_in)
-    p[-1] = p[-2]
-    S[-1] = S[-2]
-    u[-1] = u[-2]
+# === 6. Безразмерные начальные и граничные условия (вариант A: стационарный поток) ===
+u0_star = 0.0                         # начальная скорость
+p0_star = 1.0                         # базовое давление
+S0_star = 1.0                         # начальная площадь (нормирована)
+p_in_star  = 1.01                     # входное давление (немного выше)
+p_out_star = 1.00                     # выходное давление
 
-    dSdx = np.gradient(S, h)
-    dudx = np.gradient(u, h)
-    dpdx = np.gradient(p, h)
+# === 7. Проверка ===
+print("=== Масштабные множители ===")
+print(f"x_m   = {x_m:.3e} м")
+print(f"s_m   = {s_m:.3e} м^2")
+print(f"rho_m = {rho_m:.3e} кг/м^3")
+print(f"g_m   = {g_m:.3e} м/с^2")
+print(f"k_dm  = {k_dm:.3e}")
+print(f"theta* = {theta_star:.3e}")
 
-    F_S = -(u * dSdx + S * dudx)
-    F_u = -(u * dudx + (1/rho) * dpdx)
+print("\n=== Безразмерные параметры ===")
+print(f"L*     = {L_star:.3e}")
+print(f"h*     = {h_star:.3e}")
+print(f"tau*   = {tau_star:.3e}")
+print(f"nu*    = {nu_star:.3e}")
+print(f"g*     = {g_star:.3e}")
+print(f"rho*   = {rho_star:.3e}")
+print(f"k_d*   = {k_d_star:.3e}")
 
-    S_pred = S + tau * F_S
-    u_pred = u + tau * F_u
-    p_pred = p0 + K * (S_pred/S0 - 1)
-
-    dSdx_new = np.gradient(S_pred, h)
-    dudx_new = np.gradient(u_pred, h)
-    dpdx_new = np.gradient(p_pred, h)
-    F_S_new = -(u_pred * dSdx_new + S_pred * dudx_new)
-    F_u_new = -(u_pred * dudx_new + (1/rho) * dpdx_new)
-
-    S = S + tau * ((1 - sigma)*F_S + sigma*F_S_new)
-    u = u + tau * ((1 - sigma)*F_u + sigma*F_u_new)
-    p = p0 + K * (S/S0 - 1)
-
-    
-    print(f"[t={t:.4f}s] p_in={p[0]:.1f}, p_mid={p[Nx//2]:.1f}, p_end={p[-1]:.1f}")
-
-plt.plot(x, p, label="p(x)")
-plt.xlabel("x, м"); plt.ylabel("p, Па")
-plt.title("Схема (1.9.1) — σ-схема (предсказатель-корректор)")
-plt.grid(); plt.legend(); plt.show()
+print("\n=== Граничные и начальные условия ===")
+print(f"u0* = {u0_star:.3f}")
+print(f"p0* = {p0_star:.3f}")
+print(f"S0* = {S0_star:.3f}")
+print(f"p_in* = {p_in_star:.3f}, p_out* = {p_out_star:.3f}")
